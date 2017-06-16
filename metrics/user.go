@@ -2,47 +2,88 @@ package metrics
 
 import (
 	"context"
-	"fmt"
+	"log"
+	"time"
 
 	"github.com/google/go-github/github"
-	"golang.org/x/oauth2"
 )
 
+// GetLanguagesCount : count languages lines of code
 func (m *UserMetrics) GetLanguagesCount(detail bool) map[string]int {
-	ctx := context.Background()
-	ts := oauth2.StaticTokenSource(
-		&oauth2.Token{AccessToken: "e4065f79d98e4c4c345e29215e089f8f2f88718c"},
-	)
-	tc := oauth2.NewClient(ctx, ts)
-
-	client := github.NewClient(tc)
-	opt := &github.RepositoryListOptions{Type: "owner", Sort: "updated", Direction: "desc"}
-
-	repos, _, err := client.Repositories.List(ctx, m.Username, opt)
+	client, ctx := InitGithubClient()
+	languages, err := m.languagesCount(ctx, client.Repositories, detail)
 	if err != nil {
 		panic(err)
 	}
-	m.AutoredRepos = len(repos)
-	return m.languagesCount(repos, detail)
+	return languages
 }
 
-func (m *UserMetrics) languagesCount(repos []*github.Repository, detail bool) map[string]int {
+func (m *UserMetrics) languagesCount(ctx context.Context, service *github.RepositoriesService, detail bool) (map[string]int, error) {
 	m.Stars = 0
+	m.Languages = make(map[string]int)
+	opt := &github.RepositoryListOptions{Type: "owner", Sort: "updated", Direction: "desc"}
+	repos, _, err := service.List(ctx, m.Username, opt)
+	if err != nil {
+		return m.Languages, err
+	}
+	m.AutoredRepos = len(repos)
+	errc := make(ChannelError)
+	lngc := make(chan map[string]int)
 	for _, repo := range repos {
-		if repo.GetFork() {
+		if repo.GetFork() || repo.GetLanguage() == "" {
 			m.AutoredRepos--
 			continue
 		}
 		m.addStar(repo)
 		if repo.GetLanguage() != "" {
 			if detail {
-				fmt.Println(repo.GetLanguagesURL())
+				go m.fetchLenguageLines(ctx, service, repo, lngc, errc)
 			} else {
-				m.addCount(repo.GetLanguage())
+				m.addCount(repo.GetLanguage(), 1)
 			}
 		}
 	}
-	return m.Languages
+	if detail {
+		err := m.listenLenguageLines(lngc, errc)
+		if err != nil {
+			return m.Languages, err
+		}
+	}
+
+	return m.Languages, nil
+}
+
+func (m *UserMetrics) fetchLenguageLines(ctx context.Context, service *github.RepositoriesService, repo *github.Repository, lngc chan map[string]int, errc ChannelError) {
+	langs, _, err := service.ListLanguages(ctx, m.Username, repo.GetName())
+	if err != nil {
+		errc <- err
+	} else {
+		lngc <- langs
+	}
+	return
+}
+
+// Listen all go routines for each repo language url
+func (m *UserMetrics) listenLenguageLines(lngc chan map[string]int, errc ChannelError) error {
+	reposLeft := m.AutoredRepos
+	var err error
+	for {
+		select {
+		case res := <-lngc:
+			m.addCountHash(res)
+			reposLeft--
+		case err = <-errc:
+			log.Fatalln(err)
+			reposLeft--
+			break
+		case <-time.After(1000 * time.Millisecond):
+			log.Fatalln("Timeout")
+		}
+		if reposLeft <= 0 {
+			break
+		}
+	}
+	return err
 }
 
 func (m *UserMetrics) addStar(repo *github.Repository) {
@@ -52,14 +93,34 @@ func (m *UserMetrics) addStar(repo *github.Repository) {
 	}
 }
 
-func (m *UserMetrics) addCount(lang string) {
+func (m *UserMetrics) addCount(lang string, value int) {
+	lang = normalizeLang(lang)
 	_, ok := m.Languages[lang]
 	if ok {
-		m.Languages[lang]++
+		m.Languages[lang] += value
 	} else {
-		m.Languages[lang] = 1
+		m.Languages[lang] = value
 	}
 }
 
 func (m *UserMetrics) addCountHash(langLines map[string]int) {
+	if len(langLines) == 0 {
+		return
+	}
+	for lang, value := range langLines {
+		m.addCount(lang, value)
+	}
+}
+
+func normalizeLang(key string) string {
+	switch key {
+	case "Emacs Lisp":
+		return "Lisp"
+	case "C++":
+		return "CPlusPlus"
+	case "C#":
+		return "CSharp"
+	default:
+		return key
+	}
 }
