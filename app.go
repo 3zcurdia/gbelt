@@ -8,6 +8,6 @@ import (
 
 func main() {
 	metrics := metrics.NewUserMetrics("3zcurdia")
-	_ = metrics.GetLanguagesCount(false)
+	_ = metrics.GetLanguagesCount(true)
 	fmt.Printf("%+v\n", metrics)
 }
