@@ -1,7 +1,6 @@
 package metrics
 
 import (
-	"context"
 	"log"
 	"time"
 
@@ -10,19 +9,18 @@ import (
 
 // GetLanguagesCount : count languages lines of code
 func (m *UserMetrics) GetLanguagesCount(detail bool) map[string]int {
-	client, ctx := InitGithubClient()
-	languages, err := m.languagesCount(ctx, client.Repositories, detail)
+	languages, err := m.languagesCount(detail)
 	if err != nil {
 		panic(err)
 	}
 	return languages
 }
 
-func (m *UserMetrics) languagesCount(ctx context.Context, service *github.RepositoriesService, detail bool) (map[string]int, error) {
+func (m *UserMetrics) languagesCount(detail bool) (map[string]int, error) {
 	m.Stars = 0
 	m.Languages = make(map[string]int)
 	opt := &github.RepositoryListOptions{Type: "owner", Sort: "updated", Direction: "desc"}
-	repos, _, err := service.List(ctx, m.Username, opt)
+	repos, _, err := m.client.Repositories.List(m.ctx, m.Username, opt)
 	if err != nil {
 		return m.Languages, err
 	}
@@ -34,10 +32,10 @@ func (m *UserMetrics) languagesCount(ctx context.Context, service *github.Reposi
 			m.AutoredRepos--
 			continue
 		}
-		m.addStar(repo)
+		m.addStars(repo.GetStargazersCount())
 		if repo.GetLanguage() != "" {
 			if detail {
-				go m.fetchLenguageLines(ctx, service, repo, lngc, errc)
+				go m.fetchLenguageLines(repo.GetName(), lngc, errc)
 			} else {
 				m.addCount(repo.GetLanguage(), 1)
 			}
@@ -53,8 +51,8 @@ func (m *UserMetrics) languagesCount(ctx context.Context, service *github.Reposi
 	return m.Languages, nil
 }
 
-func (m *UserMetrics) fetchLenguageLines(ctx context.Context, service *github.RepositoriesService, repo *github.Repository, lngc chan map[string]int, errc ChannelError) {
-	langs, _, err := service.ListLanguages(ctx, m.Username, repo.GetName())
+func (m *UserMetrics) fetchLenguageLines(repo string, lngc chan map[string]int, errc ChannelError) {
+	langs, _, err := m.client.Repositories.ListLanguages(m.ctx, m.Username, repo)
 	if err != nil {
 		errc <- err
 	} else {
@@ -86,8 +84,7 @@ func (m *UserMetrics) listenLenguageLines(lngc chan map[string]int, errc Channel
 	return err
 }
 
-func (m *UserMetrics) addStar(repo *github.Repository) {
-	stars := repo.GetStargazersCount()
+func (m *UserMetrics) addStars(stars int) {
 	if stars > 1 {
 		m.Stars += stars
 	}
