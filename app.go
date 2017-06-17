@@ -7,7 +7,10 @@ import (
 )
 
 func main() {
-	metrics := metrics.NewUserMetrics("3zcurdia")
-	_ = metrics.GetLanguagesCount(true)
-	fmt.Printf("%+v\n", metrics)
+	um := metrics.NewUserMetrics("3zcurdia")
+	_, err := um.FetchLanguagesCount(true)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(um.Languages)
 }
