@@ -12,7 +12,7 @@ func (m *UserMetrics) FetchLanguagesCount(detail bool) (map[string]int, error) {
 	lngc := make(chan map[string]int)
 	for _, repo := range m.repos {
 		if detail {
-			go m.fetchLenguages(repo, lngc, errc)
+			go m.fetchLanguages(repo, lngc, errc)
 		} else {
 			m.addCount(repo.MainLanguage, 1)
 		}
@@ -26,12 +26,12 @@ func (m *UserMetrics) FetchLanguagesCount(detail bool) (map[string]int, error) {
 	return m.Languages, nil
 }
 
-func (m *UserMetrics) fetchLenguages(repo *RepoMetrics, lngc chan map[string]int, errc ChannelError) {
-	err := repo.fetchLenguages()
+func (m *UserMetrics) fetchLanguages(repo *RepoMetrics, lngc chan map[string]int, errc ChannelError) {
+	langs, err := repo.fetchLanguages()
 	if err != nil {
 		errc <- err
 	} else {
-		lngc <- repo.Languages
+		lngc <- langs
 	}
 	return
 }
