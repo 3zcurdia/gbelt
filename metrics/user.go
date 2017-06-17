@@ -3,42 +3,18 @@ package metrics
 import (
 	"log"
 	"time"
-
-	"github.com/google/go-github/github"
 )
 
-// GetLanguagesCount : count languages lines of code
-func (m *UserMetrics) GetLanguagesCount(detail bool) map[string]int {
-	languages, err := m.languagesCount(detail)
-	if err != nil {
-		panic(err)
-	}
-	return languages
-}
-
-func (m *UserMetrics) languagesCount(detail bool) (map[string]int, error) {
-	m.Stars = 0
+// FetchLanguagesCount : count languages lines of code
+func (m *UserMetrics) FetchLanguagesCount(detail bool) (map[string]int, error) {
 	m.Languages = make(map[string]int)
-	opt := &github.RepositoryListOptions{Type: "owner", Sort: "updated", Direction: "desc"}
-	repos, _, err := m.client.Repositories.List(m.ctx, m.Username, opt)
-	if err != nil {
-		return m.Languages, err
-	}
-	m.AutoredRepos = len(repos)
 	errc := make(ChannelError)
 	lngc := make(chan map[string]int)
-	for _, repo := range repos {
-		if repo.GetFork() || repo.GetLanguage() == "" {
-			m.AutoredRepos--
-			continue
-		}
-		m.addStars(repo.GetStargazersCount())
-		if repo.GetLanguage() != "" {
-			if detail {
-				go m.fetchLenguageLines(repo.GetName(), lngc, errc)
-			} else {
-				m.addCount(repo.GetLanguage(), 1)
-			}
+	for _, repo := range m.repos {
+		if detail {
+			go m.fetchLenguages(repo, lngc, errc)
+		} else {
+			m.addCount(repo.MainLanguage, 1)
 		}
 	}
 	if detail {
@@ -47,16 +23,15 @@ func (m *UserMetrics) languagesCount(detail bool) (map[string]int, error) {
 			return m.Languages, err
 		}
 	}
-
 	return m.Languages, nil
 }
 
-func (m *UserMetrics) fetchLenguageLines(repo string, lngc chan map[string]int, errc ChannelError) {
-	langs, _, err := m.client.Repositories.ListLanguages(m.ctx, m.Username, repo)
+func (m *UserMetrics) fetchLenguages(repo *RepoMetrics, lngc chan map[string]int, errc ChannelError) {
+	err := repo.fetchLenguages()
 	if err != nil {
 		errc <- err
 	} else {
-		lngc <- langs
+		lngc <- repo.Languages
 	}
 	return
 }
