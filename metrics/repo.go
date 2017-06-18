@@ -16,18 +16,27 @@ func (r *RepoMetrics) FetchContributorsCount() (int, error) {
 
 // FetchSpeedPer : fetch speed of the project
 func (r *RepoMetrics) FetchSpeedPer(opt *github.IssueListByRepoOptions) (float64, error) {
-	issues, _, err := r.client.Issues.ListByRepo(r.ctx, r.Owner, r.Name, opt)
-	if err != nil {
-		return 0, err
-	}
 	if opt.State == "closed" && len(opt.Labels) == 0 {
-		r.IssuesClosed = len(issues)
+		r.IssuesClosed = 0
 	}
-	for _, issue := range issues {
-		elapsed := issue.ClosedAt.Sub(*issue.CreatedAt)
-		// year, week := issue.ClosedAt.ISOWeek()
-		// fmt.Printf("%v (%v-%v) : %v \n", issue.GetNumber(), year, week, elapsed)
-		r.trends.Add(elapsed.Hours())
+	for {
+		issues, resp, err := r.client.Issues.ListByRepo(r.ctx, r.Owner, r.Name, opt)
+		if err != nil {
+			return 0, err
+		}
+		if opt.State == "closed" && len(opt.Labels) == 0 {
+			r.IssuesClosed += len(issues)
+		}
+		for _, issue := range issues {
+			elapsed := issue.ClosedAt.Sub(*issue.CreatedAt)
+			// year, week := issue.ClosedAt.ISOWeek()
+			// fmt.Printf("%v (%v-%v) : %v \n", issue.GetNumber(), year, week, elapsed)
+			r.trends.Add(elapsed.Hours())
+		}
+		if resp.NextPage == 0 {
+			break
+		}
+		opt.Page = resp.NextPage
 	}
 	return r.trends.Avg(), nil
 }
