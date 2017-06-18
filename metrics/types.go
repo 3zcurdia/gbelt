@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/3zcurdia/fastrends"
 	"github.com/google/go-github/github"
 	"golang.org/x/oauth2"
 )
@@ -43,6 +44,7 @@ type RepoMetrics struct {
 	Speed             float64        `json:"speed"`
 	IssuesOpen        int            `json:"issues_open"`
 	IssuesClosed      int            `json:"issues_closed"`
+	trends            *fastrends.TrendFloat64
 }
 
 // InitGithubClient : initialize github client
@@ -74,7 +76,12 @@ func NewUserMetrics(name string) UserMetrics {
 }
 
 func (m *UserMetrics) initRepoMetrics() error {
-	opt := &github.RepositoryListOptions{Type: "owner", Sort: "updated", Direction: "desc"}
+	opt := &github.RepositoryListOptions{
+		Type:        "owner",
+		Sort:        "updated",
+		Direction:   "desc",
+		ListOptions: github.ListOptions{PerPage: 100},
+	}
 	repos, _, err := m.client.Repositories.List(m.ctx, m.Username, opt)
 	if err != nil {
 		return err
@@ -106,5 +113,6 @@ func NewRepoMetrics(owner, name string) RepoMetrics {
 	m.Stars = repo.GetStargazersCount()
 	m.Forks = repo.GetForksCount()
 	m.MainLanguage = repo.GetLanguage()
+	m.trends = fastrends.NewTrendFloat64()
 	return m
 }
