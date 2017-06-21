@@ -20,6 +20,7 @@ type UserMetrics struct {
 	user         *github.User
 	repos        []*RepoMetrics
 	Username     string         `json:"username"`
+	Name         string         `json:"name"`
 	Email        string         `json:"email"`
 	Location     string         `json:"location"`
 	Stars        int            `json:"stars"`
@@ -70,6 +71,7 @@ func NewUserMetrics(name string) UserMetrics {
 	}
 	m.user = user
 	m.Email = user.GetEmail()
+	m.Name = user.GetName()
 	m.Location = user.GetLocation()
 	m.Followers = user.GetFollowers()
 	_ = m.initRepoMetrics()

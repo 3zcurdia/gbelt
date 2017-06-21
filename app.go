@@ -4,11 +4,16 @@ import (
 	"fmt"
 
 	"github.com/3zcurdia/gbelt/metrics"
+	"github.com/3zcurdia/gbelt/search"
 )
 
 func main() {
-	um := metrics.NewUserMetrics("3zcurdia")
+	fmt.Println("Start searching github user")
+	users, _ := search.UserByName("ezcurdia")
+
+	um := metrics.NewUserMetrics(users[0].Username)
 	fmt.Printf("Github User: %s\n", um.Username)
+	fmt.Printf("Name: %s\n", um.Name)
 	fmt.Printf("Email: %s\n", um.Email)
 	fmt.Printf("Location: %s\n", um.Location)
 	fmt.Printf("Followers: %d\n", um.Followers)
