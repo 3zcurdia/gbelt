@@ -25,6 +25,9 @@ func main() {
 	fmt.Printf("Stars: %d  Forks: %d\n", rm.Stars, rm.Forks)
 	fmt.Printf("Language: %s\n", rm.MainLanguage)
 
+	commit, _ := rm.FetchLastCommit()
+	fmt.Printf("Last commit date: %v\n", commit.Author.GetDate())
+
 	count, _ := rm.FetchContributorsCount()
 	fmt.Printf("Contributors: %d\n", count)
 

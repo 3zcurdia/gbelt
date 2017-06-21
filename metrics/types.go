@@ -4,7 +4,6 @@ import (
 	"context"
 	"log"
 	"os"
-	"time"
 
 	"github.com/3zcurdia/fastrends"
 	"github.com/google/go-github/github"
@@ -41,10 +40,10 @@ type RepoMetrics struct {
 	ContributorsCount int            `json:"contributors"`
 	MainLanguage      string         `json:"main_language"`
 	Languages         map[string]int `json:"languages"`
-	LastCommit        time.Time      `json:"date"`
-	Speed             float64        `json:"speed"`
-	IssuesOpen        int            `json:"issues_open"`
-	IssuesClosed      int            `json:"issues_closed"`
+	LastCommit        *github.Commit
+	Speed             float64 `json:"speed"`
+	IssuesOpen        int     `json:"issues_open"`
+	IssuesClosed      int     `json:"issues_closed"`
 	trends            *fastrends.TrendFloat64
 }
 

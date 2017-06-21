@@ -5,6 +5,16 @@ import (
 	"github.com/google/go-github/github"
 )
 
+// FetchLastCommit : Fetch last commit from master
+func (r *RepoMetrics) FetchLastCommit() (*github.Commit, error) {
+	branch, _, err := r.client.Repositories.GetBranch(r.ctx, r.Owner, r.Name, "master")
+	if err != nil {
+		return r.LastCommit, err
+	}
+	r.LastCommit = branch.Commit.Commit
+	return r.LastCommit, nil
+}
+
 // FetchContributorsCount : fetch form github the contributors count
 func (r *RepoMetrics) FetchContributorsCount() (int, error) {
 	r.ContributorsCount = 0
