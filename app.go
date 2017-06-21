@@ -12,7 +12,7 @@ func main() {
 	langs, _ := um.FetchLanguagesCount(true)
 	fmt.Printf("user langs : %v\n", langs)
 
-	rm := metrics.NewRepoMetrics("hubbubhealth", "rcs")
+	rm := metrics.NewRepoMetrics("stretchr", "testify")
 	opened, _ := rm.FetchOpenIssues()
 	fmt.Printf("open issues : %v\n", opened)
 
@@ -22,7 +22,9 @@ func main() {
 		Direction:   "desc",
 		ListOptions: github.ListOptions{PerPage: 100},
 	}
-	avgHours, _ := rm.FetchSpeedPer(opt)
+	stats, _ := rm.FetchStatsPer(opt)
 	fmt.Printf("closed issues : %v\n", rm.IssuesClosed)
-	fmt.Printf("avg hour : %v\n", avgHours)
+	for week, trends := range stats[2017] {
+		fmt.Printf("week %2d speed %.3f [h/issue]\n", week, trends.Avg())
+	}
 }

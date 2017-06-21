@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"github.com/3zcurdia/fastrends"
 	"github.com/google/go-github/github"
 )
 
@@ -14,31 +15,43 @@ func (r *RepoMetrics) FetchContributorsCount() (int, error) {
 	return r.ContributorsCount, nil
 }
 
-// FetchSpeedPer : fetch speed of the project
-func (r *RepoMetrics) FetchSpeedPer(opt *github.IssueListByRepoOptions) (float64, error) {
-	if opt.State == "closed" && len(opt.Labels) == 0 {
+// FetchStatsPer : fetch speed of the project
+func (r *RepoMetrics) FetchStatsPer(opt *github.IssueListByRepoOptions) (map[int]map[int]*fastrends.TrendFloat64, error) {
+	allClosed := opt.State == "closed" && len(opt.Labels) == 0
+	if allClosed {
 		r.IssuesClosed = 0
 	}
+	stats := make(map[int]map[int]*fastrends.TrendFloat64)
 	for {
 		issues, resp, err := r.client.Issues.ListByRepo(r.ctx, r.Owner, r.Name, opt)
 		if err != nil {
-			return 0, err
+			return stats, err
 		}
-		if opt.State == "closed" && len(opt.Labels) == 0 {
+		if allClosed {
 			r.IssuesClosed += len(issues)
 		}
 		for _, issue := range issues {
 			elapsed := issue.ClosedAt.Sub(*issue.CreatedAt)
-			// year, week := issue.ClosedAt.ISOWeek()
-			// fmt.Printf("%v (%v-%v) : %v \n", issue.GetNumber(), year, week, elapsed)
-			r.trends.Add(elapsed.Hours())
+			year, week := issue.ClosedAt.ISOWeek()
+			if _, oky := stats[year]; oky {
+				if _, okw := stats[year][week]; !okw {
+					stats[year][week] = fastrends.NewTrendFloat64()
+				}
+			} else {
+				stats[year] = make(map[int]*fastrends.TrendFloat64)
+				stats[year][week] = fastrends.NewTrendFloat64()
+			}
+			stats[year][week].Add(elapsed.Hours())
+			if allClosed {
+				r.trends.Add(elapsed.Hours())
+			}
 		}
 		if resp.NextPage == 0 {
 			break
 		}
 		opt.Page = resp.NextPage
 	}
-	return r.trends.Avg(), nil
+	return stats, nil
 }
 
 func (r *RepoMetrics) fetchLanguages() (map[string]int, error) {
