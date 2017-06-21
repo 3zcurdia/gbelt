@@ -4,27 +4,38 @@ import (
 	"fmt"
 
 	"github.com/3zcurdia/gbelt/metrics"
-	"github.com/google/go-github/github"
 )
 
 func main() {
 	um := metrics.NewUserMetrics("3zcurdia")
-	langs, _ := um.FetchLanguagesCount(true)
-	fmt.Printf("user langs : %v\n", langs)
+	fmt.Printf("Github User: %s\n", um.Username)
+	fmt.Printf("Email: %s\n", um.Email)
+	fmt.Printf("Location: %s\n", um.Location)
+	fmt.Printf("Followers: %d\n", um.Followers)
+	fmt.Printf("Autored Repos: %d\n", um.AutoredRepos)
+
+	um.FetchLanguagesCount(true)
+	fmt.Printf("Stars: %d\n", um.Stars)
+	fmt.Printf("Langauges: %v\n", um.Languages)
+
+	fmt.Println("======================================")
 
 	rm := metrics.NewRepoMetrics("stretchr", "testify")
-	opened, _ := rm.FetchOpenIssues()
-	fmt.Printf("open issues : %v\n", opened)
+	fmt.Printf("Github Repository: '%s/%s'\n", rm.Owner, rm.Name)
+	fmt.Printf("Stars: %d  Forks: %d\n", rm.Stars, rm.Forks)
+	fmt.Printf("Language: %s\n", rm.MainLanguage)
 
-	opt := &github.IssueListByRepoOptions{
-		State:       "closed",
-		Sort:        "closed_at",
-		Direction:   "desc",
-		ListOptions: github.ListOptions{PerPage: 100},
+	count, _ := rm.FetchContributorsCount()
+	fmt.Printf("Contributors: %d\n", count)
+
+	opened, _ := rm.FetchOpenIssues()
+	fmt.Printf("Open issues: %v\n", opened)
+
+	trendsMap, _ := rm.FetchClosedIssues()
+	fmt.Printf("Closed issues: %v\n", rm.IssuesClosed)
+	fmt.Println("Weekly Speeds in 2017")
+	for week, trends := range trendsMap[2017] {
+		fmt.Printf("  * %2d => %.3f [h/issue]\n", week, trends.Avg())
 	}
-	stats, _ := rm.FetchStatsPer(opt)
-	fmt.Printf("closed issues : %v\n", rm.IssuesClosed)
-	for week, trends := range stats[2017] {
-		fmt.Printf("week %2d speed %.3f [h/issue]\n", week, trends.Avg())
-	}
+	fmt.Printf("Project speed: %.3f [h/issue]\n", rm.Speed)
 }

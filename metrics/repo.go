@@ -7,11 +7,21 @@ import (
 
 // FetchContributorsCount : fetch form github the contributors count
 func (r *RepoMetrics) FetchContributorsCount() (int, error) {
-	contribs, _, err := r.client.Repositories.ListCollaborators(r.ctx, r.Owner, r.Name, nil)
-	if err != nil {
-		return r.ContributorsCount, err
+	r.ContributorsCount = 0
+	opt := &github.ListContributorsOptions{
+		ListOptions: github.ListOptions{PerPage: 100},
 	}
-	r.ContributorsCount = len(contribs)
+	for {
+		contribs, resp, err := r.client.Repositories.ListContributors(r.ctx, r.Owner, r.Name, opt)
+		if err != nil {
+			return r.ContributorsCount, err
+		}
+		r.ContributorsCount += len(contribs)
+		if resp.NextPage == 0 {
+			break
+		}
+		opt.Page = resp.NextPage
+	}
 	return r.ContributorsCount, nil
 }
 
@@ -20,6 +30,7 @@ func (r *RepoMetrics) FetchStatsPer(opt *github.IssueListByRepoOptions) (map[int
 	allClosed := opt.State == "closed" && len(opt.Labels) == 0
 	if allClosed {
 		r.IssuesClosed = 0
+		r.Speed = 0
 	}
 	stats := make(map[int]map[int]*fastrends.TrendFloat64)
 	for {
@@ -50,6 +61,9 @@ func (r *RepoMetrics) FetchStatsPer(opt *github.IssueListByRepoOptions) (map[int
 			break
 		}
 		opt.Page = resp.NextPage
+	}
+	if allClosed {
+		r.Speed = r.trends.Avg()
 	}
 	return stats, nil
 }
@@ -85,4 +99,15 @@ func (r *RepoMetrics) FetchOpenIssues() (int, error) {
 		opt.Page = resp.NextPage
 	}
 	return r.IssuesOpen, nil
+}
+
+// FetchClosedIssues : fetch all closed issues return the trends map per year and week
+func (r *RepoMetrics) FetchClosedIssues() (map[int]map[int]*fastrends.TrendFloat64, error) {
+	opt := &github.IssueListByRepoOptions{
+		State:       "closed",
+		Sort:        "closed_at",
+		Direction:   "desc",
+		ListOptions: github.ListOptions{PerPage: 100},
+	}
+	return r.FetchStatsPer(opt)
 }

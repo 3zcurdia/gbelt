@@ -24,6 +24,7 @@ type UserMetrics struct {
 	Email        string         `json:"email"`
 	Location     string         `json:"location"`
 	Stars        int            `json:"stars"`
+	Followers    int            `json:"followers"`
 	AutoredRepos int            `json:"authored_repos"`
 	Languages    map[string]int `json:"languages"`
 }
@@ -71,6 +72,7 @@ func NewUserMetrics(name string) UserMetrics {
 	m.user = user
 	m.Email = user.GetEmail()
 	m.Location = user.GetLocation()
+	m.Followers = user.GetFollowers()
 	_ = m.initRepoMetrics()
 	return m
 }
