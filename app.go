@@ -5,6 +5,7 @@ import (
 
 	"github.com/3zcurdia/gbelt/metrics"
 	"github.com/3zcurdia/gbelt/search"
+	"github.com/google/go-github/github"
 )
 
 func main() {
@@ -36,11 +37,19 @@ func main() {
 	count, _ := rm.FetchContributorsCount()
 	fmt.Printf("Contributors: %d\n", count)
 
-	opened, _ := rm.FetchOpenIssues()
-	fmt.Printf("Open issues: %v\n", opened)
+	rm.FetchOpenIssues()
+	fmt.Printf("Open issues: %v\n", rm.IssuesOpen)
 
-	trendsMap, _ := rm.FetchClosedIssues()
+	rm.FetchClosedIssues()
 	fmt.Printf("Closed issues: %v\n", rm.IssuesClosed)
+
+	opt := &github.IssueListByRepoOptions{
+		State:       "closed",
+		Sort:        "closed_at",
+		Direction:   "desc",
+		ListOptions: github.ListOptions{PerPage: 100},
+	}
+	trendsMap, _ := rm.FetchStatsPer(opt)
 	fmt.Println("Weekly Speeds in 2017")
 	for week, trends := range trendsMap[2017] {
 		fmt.Printf("  * %2d => %.3f [h/issue]\n", week, trends.Avg())

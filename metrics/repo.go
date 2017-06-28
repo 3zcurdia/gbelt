@@ -35,11 +35,61 @@ func (r *RepoMetrics) FetchContributorsCount() (int, error) {
 	return r.ContributorsCount, nil
 }
 
+// FetchOpenIssues : fetch all open issues and count total
+func (r *RepoMetrics) FetchOpenIssues() ([]*github.Issue, error) {
+	opt := &github.IssueListByRepoOptions{
+		State:       "open",
+		Sort:        "updated",
+		Direction:   "desc",
+		ListOptions: github.ListOptions{PerPage: 100},
+	}
+	issues, err := r.FetchAllIssues(opt)
+	if err != nil {
+		return issues, err
+	}
+	r.IssuesOpen = len(issues)
+	return issues, nil
+}
+
+// FetchClosedIssues : fetch all closed issues return the trends map per year and week
+func (r *RepoMetrics) FetchClosedIssues() ([]*github.Issue, error) {
+	opt := &github.IssueListByRepoOptions{
+		State:       "closed",
+		Sort:        "closed_at",
+		Direction:   "desc",
+		ListOptions: github.ListOptions{PerPage: 100},
+	}
+	issues, err := r.FetchAllIssues(opt)
+	if err != nil {
+		return issues, err
+	}
+	r.IssuesClosed = len(issues)
+	return issues, nil
+}
+
+// FetchAllIssues : fetch all issues
+func (r *RepoMetrics) FetchAllIssues(opt *github.IssueListByRepoOptions) ([]*github.Issue, error) {
+	allIssues := make([]*github.Issue, 0)
+	for {
+		issues, resp, err := r.client.Issues.ListByRepo(r.ctx, r.Owner, r.Name, opt)
+		if err != nil {
+			return allIssues, err
+		}
+		for _, issue := range issues {
+			allIssues = append(allIssues, issue)
+		}
+		if resp.NextPage == 0 {
+			break
+		}
+		opt.Page = resp.NextPage
+	}
+	return allIssues, nil
+}
+
 // FetchStatsPer : fetch speed of the project
 func (r *RepoMetrics) FetchStatsPer(opt *github.IssueListByRepoOptions) (map[int]map[int]*fastrends.TrendFloat64, error) {
 	allClosed := opt.State == "closed" && len(opt.Labels) == 0
 	if allClosed {
-		r.IssuesClosed = 0
 		r.Speed = 0
 	}
 	stats := make(map[int]map[int]*fastrends.TrendFloat64)
@@ -47,9 +97,6 @@ func (r *RepoMetrics) FetchStatsPer(opt *github.IssueListByRepoOptions) (map[int
 		issues, resp, err := r.client.Issues.ListByRepo(r.ctx, r.Owner, r.Name, opt)
 		if err != nil {
 			return stats, err
-		}
-		if allClosed {
-			r.IssuesClosed += len(issues)
 		}
 		for _, issue := range issues {
 			elapsed := issue.ClosedAt.Sub(*issue.CreatedAt)
@@ -86,38 +133,4 @@ func (r *RepoMetrics) fetchLanguages() (map[string]int, error) {
 	}
 	r.Languages = langs
 	return r.Languages, nil
-}
-
-// FetchOpenIssues : fetch all open issues and count total
-func (r *RepoMetrics) FetchOpenIssues() (int, error) {
-	opt := &github.IssueListByRepoOptions{
-		State:       "open",
-		Sort:        "updated",
-		Direction:   "desc",
-		ListOptions: github.ListOptions{PerPage: 100},
-	}
-	r.IssuesOpen = 0
-	for {
-		issuesOpen, resp, err := r.client.Issues.ListByRepo(r.ctx, r.Owner, r.Name, opt)
-		if err != nil {
-			return 0, err
-		}
-		r.IssuesOpen += len(issuesOpen)
-		if resp.NextPage == 0 {
-			break
-		}
-		opt.Page = resp.NextPage
-	}
-	return r.IssuesOpen, nil
-}
-
-// FetchClosedIssues : fetch all closed issues return the trends map per year and week
-func (r *RepoMetrics) FetchClosedIssues() (map[int]map[int]*fastrends.TrendFloat64, error) {
-	opt := &github.IssueListByRepoOptions{
-		State:       "closed",
-		Sort:        "closed_at",
-		Direction:   "desc",
-		ListOptions: github.ListOptions{PerPage: 100},
-	}
-	return r.FetchStatsPer(opt)
 }
