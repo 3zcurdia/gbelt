@@ -50,6 +50,7 @@ func (r *RepoMetrics) Issues() []*github.Issue {
 	return r.issues
 }
 
+// IssuesFiltered : filter from fetched issues
 func (r *RepoMetrics) IssuesFiltered(filter *IssuesFilter) []*github.Issue {
 	filtered := make([]*github.Issue, 0)
 	for _, issue := range r.Issues() {

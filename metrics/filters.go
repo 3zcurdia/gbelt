@@ -1,6 +1,10 @@
 package metrics
 
-import "github.com/google/go-github/github"
+import (
+	"strings"
+
+	"github.com/google/go-github/github"
+)
 
 // IssuesFilter : filter for issues, leaving empty a value will be default as all
 type IssuesFilter struct {
@@ -42,7 +46,7 @@ func (f *IssuesFilter) containAuthor(e string) bool {
 func (f *IssuesFilter) containLabels(labels []github.Label) bool {
 	for _, a := range f.Labels {
 		for _, lbl := range labels {
-			if a == lbl.GetName() {
+			if strings.ToLower(a) == strings.ToLower(lbl.GetName()) {
 				return true
 			}
 		}
@@ -52,7 +56,7 @@ func (f *IssuesFilter) containLabels(labels []github.Label) bool {
 
 func containLabel(labels []*github.Label, name string) bool {
 	for _, label := range labels {
-		if label.GetName() == name {
+		if strings.ToLower(label.GetName()) == strings.ToLower(name) {
 			return true
 		}
 	}
