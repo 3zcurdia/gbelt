@@ -35,36 +35,43 @@ func (r *RepoMetrics) FetchContributorsCount() (int, error) {
 	return r.ContributorsCount, nil
 }
 
-// FetchOpenIssues : fetch all open issues and count total
-func (r *RepoMetrics) FetchOpenIssues() ([]*github.Issue, error) {
+// Issues : lazy load all repo issues
+func (r *RepoMetrics) Issues() []*github.Issue {
+	if len(r.issues) > 0 {
+		return r.issues
+	}
 	opt := &github.IssueListByRepoOptions{
-		State:       "open",
-		Sort:        "updated",
+		State:       "all",
+		Sort:        "created_at",
 		Direction:   "desc",
 		ListOptions: github.ListOptions{PerPage: 100},
 	}
-	issues, err := r.FetchAllIssues(opt)
-	if err != nil {
-		return issues, err
-	}
-	r.IssuesOpen = len(issues)
-	return issues, nil
+	r.issues, _ = r.FetchAllIssues(opt)
+	return r.issues
 }
 
-// FetchClosedIssues : fetch all closed issues return the trends map per year and week
-func (r *RepoMetrics) FetchClosedIssues() ([]*github.Issue, error) {
-	opt := &github.IssueListByRepoOptions{
-		State:       "closed",
-		Sort:        "closed_at",
-		Direction:   "desc",
-		ListOptions: github.ListOptions{PerPage: 100},
+func (r *RepoMetrics) issuesFiltered(filter *IssuesFilter) []*github.Issue {
+	filtered := make([]*github.Issue, 0)
+	for _, issue := range r.Issues() {
+		if filter.Match(issue) {
+			filtered = append(filtered, issue)
+		}
 	}
-	issues, err := r.FetchAllIssues(opt)
-	if err != nil {
-		return issues, err
-	}
-	r.IssuesClosed = len(issues)
-	return issues, nil
+	return filtered
+}
+
+// IssuesClosed : fetch all closed issues return the trends map per year and week
+func (r *RepoMetrics) IssuesClosed() []*github.Issue {
+	issues := r.issuesFiltered(&IssuesFilter{State: "closed"})
+	r.IssuesClosedCount = len(issues)
+	return issues
+}
+
+// IssuesOpen : fetch all open issues and count total
+func (r *RepoMetrics) IssuesOpen() []*github.Issue {
+	issues := r.issuesFiltered(&IssuesFilter{State: "open"})
+	r.IssuesOpenCount = len(issues)
+	return issues
 }
 
 // FetchAllIssues : fetch all issues
@@ -86,43 +93,45 @@ func (r *RepoMetrics) FetchAllIssues(opt *github.IssueListByRepoOptions) ([]*git
 	return allIssues, nil
 }
 
-// FetchStatsPer : fetch speed of the project
-func (r *RepoMetrics) FetchStatsPer(opt *github.IssueListByRepoOptions) (map[int]map[int]*fastrends.TrendFloat64, error) {
-	allClosed := opt.State == "closed" && len(opt.Labels) == 0
-	if allClosed {
-		r.Speed = 0
-	}
+// FetchStats : fetch stats from closed issues in the project
+func (r *RepoMetrics) FetchStats() map[int]map[int]*fastrends.TrendFloat64 {
+	r.Speed = 0
 	stats := make(map[int]map[int]*fastrends.TrendFloat64)
-	for {
-		issues, resp, err := r.client.Issues.ListByRepo(r.ctx, r.Owner, r.Name, opt)
-		if err != nil {
-			return stats, err
-		}
-		for _, issue := range issues {
-			elapsed := issue.ClosedAt.Sub(*issue.CreatedAt)
-			year, week := issue.ClosedAt.ISOWeek()
-			if _, oky := stats[year]; oky {
-				if _, okw := stats[year][week]; !okw {
-					stats[year][week] = fastrends.NewTrendFloat64()
-				}
-			} else {
-				stats[year] = make(map[int]*fastrends.TrendFloat64)
+	for _, issue := range r.IssuesClosed() {
+		elapsed := issue.ClosedAt.Sub(*issue.CreatedAt)
+		year, week := issue.ClosedAt.ISOWeek()
+		if _, oky := stats[year]; oky {
+			if _, okw := stats[year][week]; !okw {
 				stats[year][week] = fastrends.NewTrendFloat64()
 			}
-			stats[year][week].Add(elapsed.Hours())
-			if allClosed {
-				r.trends.Add(elapsed.Hours())
+		} else {
+			stats[year] = make(map[int]*fastrends.TrendFloat64)
+			stats[year][week] = fastrends.NewTrendFloat64()
+		}
+		stats[year][week].Add(elapsed.Hours())
+		r.trends.Add(elapsed.Hours())
+	}
+	r.Speed = r.trends.WeightedAvg()
+	return stats
+}
+
+// FetchStatsBy : fetch stats from the filter pointer
+func (r *RepoMetrics) FetchStatsBy(filter *IssuesFilter) map[int]map[int]*fastrends.TrendFloat64 {
+	stats := make(map[int]map[int]*fastrends.TrendFloat64)
+	for _, issue := range r.issuesFiltered(filter) {
+		elapsed := issue.ClosedAt.Sub(*issue.CreatedAt)
+		year, week := issue.ClosedAt.ISOWeek()
+		if _, oky := stats[year]; oky {
+			if _, okw := stats[year][week]; !okw {
+				stats[year][week] = fastrends.NewTrendFloat64()
 			}
+		} else {
+			stats[year] = make(map[int]*fastrends.TrendFloat64)
+			stats[year][week] = fastrends.NewTrendFloat64()
 		}
-		if resp.NextPage == 0 {
-			break
-		}
-		opt.Page = resp.NextPage
+		stats[year][week].Add(elapsed.Hours())
 	}
-	if allClosed {
-		r.Speed = r.trends.Avg()
-	}
-	return stats, nil
+	return stats
 }
 
 func (r *RepoMetrics) fetchLanguages() (map[string]int, error) {

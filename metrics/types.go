@@ -34,6 +34,8 @@ type RepoMetrics struct {
 	client            *github.Client
 	ctx               context.Context
 	repo              *github.Repository
+	trends            *fastrends.TrendFloat64
+	issues            []*github.Issue
 	Name              string         `json:"name"`
 	Owner             string         `json:"owner"`
 	Stars             int            `json:"stars"`
@@ -41,11 +43,10 @@ type RepoMetrics struct {
 	ContributorsCount int            `json:"contributors"`
 	MainLanguage      string         `json:"main_language"`
 	Languages         map[string]int `json:"languages"`
+	Speed             float64        `json:"speed"`
+	IssuesOpenCount   int            `json:"issues_open_count"`
+	IssuesClosedCount int            `json:"issues_closed_count"`
 	LastCommit        *github.Commit
-	Speed             float64 `json:"speed"`
-	IssuesOpen        int     `json:"issues_open"`
-	IssuesClosed      int     `json:"issues_closed"`
-	trends            *fastrends.TrendFloat64
 }
 
 // InitGithubClient : initialize github client

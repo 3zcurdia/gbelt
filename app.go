@@ -5,7 +5,6 @@ import (
 
 	"github.com/3zcurdia/gbelt/metrics"
 	"github.com/3zcurdia/gbelt/search"
-	"github.com/google/go-github/github"
 )
 
 func main() {
@@ -37,22 +36,29 @@ func main() {
 	count, _ := rm.FetchContributorsCount()
 	fmt.Printf("Contributors: %d\n", count)
 
-	rm.FetchOpenIssues()
-	fmt.Printf("Open issues: %v\n", rm.IssuesOpen)
+	issues := rm.Issues()
+	fmt.Printf("All issues: %v\n", len(issues))
 
-	rm.FetchClosedIssues()
-	fmt.Printf("Closed issues: %v\n", rm.IssuesClosed)
+	rm.IssuesOpen()
+	fmt.Printf("Open issues: %v\n", rm.IssuesOpenCount)
 
-	opt := &github.IssueListByRepoOptions{
-		State:       "closed",
-		Sort:        "closed_at",
-		Direction:   "desc",
-		ListOptions: github.ListOptions{PerPage: 100},
-	}
-	trendsMap, _ := rm.FetchStatsPer(opt)
+	rm.IssuesClosed()
+	fmt.Printf("Closed issues: %v\n", rm.IssuesClosedCount)
+
+	trendsMap := rm.FetchStats()
 	fmt.Println("Weekly Speeds in 2017")
 	for week, trends := range trendsMap[2017] {
 		fmt.Printf("  * %2d => %.3f [h/issue]\n", week, trends.Avg())
 	}
 	fmt.Printf("Project speed: %.3f [h/issue]\n", rm.Speed)
+
+	filter := &metrics.IssuesFilter{
+		State:  "closed",
+		Labels: []string{"bug"},
+	}
+	trendsMapFilter := rm.FetchStatsBy(filter)
+	fmt.Println("Weekly closed bugs in 2017")
+	for week, trends := range trendsMapFilter[2017] {
+		fmt.Printf("  * %2d => %d [bug]\n", week, trends.Count)
+	}
 }
