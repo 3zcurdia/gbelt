@@ -50,7 +50,7 @@ func (r *RepoMetrics) Issues() []*github.Issue {
 	return r.issues
 }
 
-func (r *RepoMetrics) issuesFiltered(filter *IssuesFilter) []*github.Issue {
+func (r *RepoMetrics) IssuesFiltered(filter *IssuesFilter) []*github.Issue {
 	filtered := make([]*github.Issue, 0)
 	for _, issue := range r.Issues() {
 		if filter.Match(issue) {
@@ -62,14 +62,14 @@ func (r *RepoMetrics) issuesFiltered(filter *IssuesFilter) []*github.Issue {
 
 // IssuesClosed : fetch all closed issues return the trends map per year and week
 func (r *RepoMetrics) IssuesClosed() []*github.Issue {
-	issues := r.issuesFiltered(&IssuesFilter{State: "closed"})
+	issues := r.IssuesFiltered(&IssuesFilter{State: "closed"})
 	r.IssuesClosedCount = len(issues)
 	return issues
 }
 
 // IssuesOpen : fetch all open issues and count total
 func (r *RepoMetrics) IssuesOpen() []*github.Issue {
-	issues := r.issuesFiltered(&IssuesFilter{State: "open"})
+	issues := r.IssuesFiltered(&IssuesFilter{State: "open"})
 	r.IssuesOpenCount = len(issues)
 	return issues
 }
@@ -118,7 +118,7 @@ func (r *RepoMetrics) FetchStats() map[int]map[int]*fastrends.TrendFloat64 {
 // FetchStatsBy : fetch stats from the filter pointer
 func (r *RepoMetrics) FetchStatsBy(filter *IssuesFilter) map[int]map[int]*fastrends.TrendFloat64 {
 	stats := make(map[int]map[int]*fastrends.TrendFloat64)
-	for _, issue := range r.issuesFiltered(filter) {
+	for _, issue := range r.IssuesFiltered(filter) {
 		elapsed := issue.ClosedAt.Sub(*issue.CreatedAt)
 		year, week := issue.ClosedAt.ISOWeek()
 		if _, oky := stats[year]; oky {
