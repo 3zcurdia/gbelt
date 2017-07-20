@@ -5,6 +5,20 @@ import (
 	"time"
 )
 
+// FetchProfile : load user profile info
+func (m *UserMetrics) FetchProfile() error {
+	user, _, err := m.client.Users.Get(m.ctx, m.Name)
+	if err != nil {
+		return err
+	}
+	m.user = user
+	m.Email = user.GetEmail()
+	m.Name = user.GetName()
+	m.Location = user.GetLocation()
+	m.Followers = user.GetFollowers()
+	return nil
+}
+
 // FetchLanguagesCount : count languages lines of code
 func (m *UserMetrics) FetchLanguagesCount(detail bool) (map[string]int, error) {
 	m.Languages = make(map[string]int)

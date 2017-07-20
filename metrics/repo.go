@@ -5,6 +5,20 @@ import (
 	"github.com/google/go-github/github"
 )
 
+// FetchRepo : Fetch repo info
+func (r *RepoMetrics) FetchRepo() error {
+	repo, _, err := r.client.Repositories.Get(r.ctx, r.Owner, r.Name)
+	if err != nil {
+		return err
+	}
+	r.repo = repo
+	r.Stars = repo.GetStargazersCount()
+	r.Forks = repo.GetForksCount()
+	r.MainLanguage = repo.GetLanguage()
+	r.trends = fastrends.NewTrendFloat64()
+	return nil
+}
+
 // FetchLastCommit : Fetch last commit from master
 func (r *RepoMetrics) FetchLastCommit() (*github.Commit, error) {
 	branch, _, err := r.client.Repositories.GetBranch(r.ctx, r.Owner, r.Name, "master")
