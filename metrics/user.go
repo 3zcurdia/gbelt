@@ -100,6 +100,8 @@ func normalizeLang(key string) string {
 		return "CPlusPlus"
 	case "C#":
 		return "CSharp"
+	case "":
+		return "unknown"
 	default:
 		return key
 	}
