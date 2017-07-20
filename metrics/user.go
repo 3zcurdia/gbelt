@@ -7,7 +7,7 @@ import (
 
 // FetchProfile : load user profile info
 func (um *UserMetrics) FetchProfile() error {
-	user, _, err := um.client.Users.Get(um.ctx, um.Name)
+	user, _, err := um.client.Users.Get(um.ctx, um.Username)
 	if err != nil {
 		return err
 	}
@@ -101,7 +101,7 @@ func normalizeLang(key string) string {
 	case "C#":
 		return "CSharp"
 	case "":
-		return "unknown"
+		return "Unknown"
 	default:
 		return key
 	}
