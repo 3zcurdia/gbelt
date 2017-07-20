@@ -6,42 +6,42 @@ import (
 )
 
 // FetchProfile : load user profile info
-func (m *UserMetrics) FetchProfile() error {
-	user, _, err := m.client.Users.Get(m.ctx, m.Name)
+func (um *UserMetrics) FetchProfile() error {
+	user, _, err := um.client.Users.Get(um.ctx, um.Name)
 	if err != nil {
 		return err
 	}
-	m.user = user
-	m.Email = user.GetEmail()
-	m.Name = user.GetName()
-	m.Location = user.GetLocation()
-	m.Followers = user.GetFollowers()
+	um.user = user
+	um.Email = user.GetEmail()
+	um.Name = user.GetName()
+	um.Location = user.GetLocation()
+	um.Followers = user.GetFollowers()
 	return nil
 }
 
 // FetchLanguagesCount : count languages lines of code
-func (m *UserMetrics) FetchLanguagesCount(detail bool) (map[string]int, error) {
-	m.Languages = make(map[string]int)
+func (um *UserMetrics) FetchLanguagesCount(detail bool) (map[string]int, error) {
+	um.Languages = make(map[string]int)
 	errc := make(ChannelError)
 	lngc := make(chan map[string]int)
-	for _, repo := range m.repos {
+	for _, repo := range um.repos {
 		if detail {
-			go m.fetchLanguages(repo, lngc, errc)
+			go um.fetchLanguages(repo, lngc, errc)
 		} else {
-			m.addCount(repo.MainLanguage, 1)
+			um.addCount(repo.MainLanguage, 1)
 		}
 	}
 	if detail {
-		err := m.listenLenguageLines(lngc, errc)
+		err := um.listenLenguageLines(lngc, errc)
 		if err != nil {
-			return m.Languages, err
+			return um.Languages, err
 		}
 	}
-	return m.Languages, nil
+	return um.Languages, nil
 }
 
-func (m *UserMetrics) fetchLanguages(repo *RepoMetrics, lngc chan map[string]int, errc ChannelError) {
-	langs, err := repo.fetchLanguages()
+func (um *UserMetrics) fetchLanguages(rm *RepoMetrics, lngc chan map[string]int, errc ChannelError) {
+	langs, err := rm.fetchLanguages()
 	if err != nil {
 		errc <- err
 	} else {
@@ -51,13 +51,13 @@ func (m *UserMetrics) fetchLanguages(repo *RepoMetrics, lngc chan map[string]int
 }
 
 // Listen all go routines for each repo language url
-func (m *UserMetrics) listenLenguageLines(lngc chan map[string]int, errc ChannelError) error {
-	reposLeft := m.AutoredRepos
+func (um *UserMetrics) listenLenguageLines(lngc chan map[string]int, errc ChannelError) error {
+	reposLeft := um.AutoredRepos
 	var err error
 	for {
 		select {
 		case res := <-lngc:
-			m.addCountHash(res)
+			um.addCountHash(res)
 			reposLeft--
 		case err = <-errc:
 			log.Fatalln(err)
@@ -73,28 +73,22 @@ func (m *UserMetrics) listenLenguageLines(lngc chan map[string]int, errc Channel
 	return err
 }
 
-func (m *UserMetrics) addStars(stars int) {
-	if stars > 1 {
-		m.Stars += stars
-	}
-}
-
-func (m *UserMetrics) addCount(lang string, value int) {
+func (um *UserMetrics) addCount(lang string, value int) {
 	lang = normalizeLang(lang)
-	_, ok := m.Languages[lang]
+	_, ok := um.Languages[lang]
 	if ok {
-		m.Languages[lang] += value
+		um.Languages[lang] += value
 	} else {
-		m.Languages[lang] = value
+		um.Languages[lang] = value
 	}
 }
 
-func (m *UserMetrics) addCountHash(langLines map[string]int) {
+func (um *UserMetrics) addCountHash(langLines map[string]int) {
 	if len(langLines) == 0 {
 		return
 	}
 	for lang, value := range langLines {
-		m.addCount(lang, value)
+		um.addCount(lang, value)
 	}
 }
 

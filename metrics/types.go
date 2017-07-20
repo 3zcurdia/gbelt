@@ -89,17 +89,22 @@ func (m *UserMetrics) InitReposMetrics() error {
 	m.AutoredRepos = len(repos)
 	m.repos = make([]*RepoMetrics, 0)
 	for _, repo := range repos {
-		if repo.GetFork() || repo.GetLanguage() == "" {
+		if repo.GetFork() {
 			m.AutoredRepos--
 			continue
 		}
-		m.addStars(repo.GetStargazersCount())
+		m.Stars += repo.GetStargazersCount()
 		repoMetric := RepoMetrics{
 			Owner:  m.Username,
 			Name:   repo.GetName(),
 			client: m.client,
 			ctx:    m.ctx,
 		}
+		repoMetric.repo = repo
+		repoMetric.Stars = repo.GetStargazersCount()
+		repoMetric.Forks = repo.GetForksCount()
+		repoMetric.MainLanguage = repo.GetLanguage()
+		repoMetric.trends = fastrends.NewTrendFloat64()
 		m.repos = append(m.repos, &repoMetric)
 	}
 	return nil
